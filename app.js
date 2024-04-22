@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
@@ -63,9 +64,26 @@ async function* StreamCompletion(data) {
   yield* linesToMessages(chunksToLines(data));
 }
 
+// 代理服务器的配置
+const proxyOptions = {
+  host: process.env.PROXY_HOST,
+  port: process.env.PROXY_PORT,
+  // 如果代理服务器需要认证，你可以添加以下选项
+  auth: process.env.PROXY_USERNAME && process.env.PROXY_PASSWORD ? {
+    username: process.env.PROXY_USERNAME,
+    password: process.env.PROXY_PASSWORD
+  }: null
+};
+
+// 创建一个使用代理配置的https.Agent实例
+const agent = new https.Agent({
+  rejectUnauthorized: false, // 忽略证书验证
+  proxy: proxyOptions // 设置代理选项
+});
+
 // Setup axios instance for API requests with predefined configurations
 const axiosInstance = axios.create({
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+  httpsAgent: agent,
   headers: {
     accept: "*/*",
     "accept-language": "en-US,en;q=0.9",
