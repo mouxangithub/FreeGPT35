@@ -20,11 +20,23 @@ node app.js
 ### Docker
 
 ```bash
-docker run -p 3040:3040 ghcr.io/missuo/freegpt35
+docker run -d \
+ -p 3040:3040 \
+ -e PROXY_HOST=127.0.0.1 \
+ -e PROXY_PORT=8080 \
+ -e PROXY_USERNAME=xxxx \
+ -e PROXY_PASSWORD=xxxx \
+ ghcr.io/mouxan/freegpt35
 ```
 
 ```bash
-docker run -p 3040:3040 missuo/freegpt35
+docker run -d \
+ -p 3040:3040 \
+ -e PROXY_HOST=127.0.0.1 \
+ -e PROXY_PORT=8080 \
+ -e PROXY_USERNAME=xxxx \
+ -e PROXY_PASSWORD=xxxx \
+ mouxan/freegpt35
 ```
 
 ### Docker Compose
