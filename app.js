@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
@@ -11,10 +10,9 @@ config();
 
 // Constants for the server and API configuration
 const port = process.env.SERVER_PORT || 3040;
-// const baseUrl = "https://chat.openai.com";
-// const apiUrl = `${baseUrl}/backend-api/conversation`;
 const baseUrl = process.env.BASE_URL ? process.env.BASE_URL : "https://chat.openai.com";
-const apiUrl = `${baseUrl}${process.env.API_PATH ? process.env.API_PATH : "/backend-api/conversation"}`;
+const apiUrl = `${baseUrl}/backend-anon/conversation`;
+const requirementsUrl = `${baseUrl}/backend-anon/sentinel/chat-requirements`;
 const refreshInterval = 60000; // Interval to refresh token in ms
 const errorWait = 120000; // Wait time in ms after an error
 const newSessionRetries = parseInt(process.env.NEW_SESSION_RETRIES) || 5;
@@ -120,7 +118,7 @@ async function getNewSession(retries = 0) {
   let newDeviceId = randomUUID();
   try {
     const response = await axiosInstance.post(
-      `${baseUrl}/backend-anon/sentinel/chat-requirements`,
+      requirementsUrl,
       {},
       {
         headers: { "oai-device-id": newDeviceId },
@@ -184,7 +182,6 @@ async function handleChatCompletion(req, res) {
       session.proofofwork.difficulty,
       userAgent
     );
-    console.log(proofToken)
     const body = {
       action: "next",
       messages: req.body.messages.map((message) => ({

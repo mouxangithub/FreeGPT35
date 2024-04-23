@@ -9,11 +9,12 @@
 
 ### 使用蟑螂v2基础域名进行免登3.5转v1
 
+BASE_URL为[cockroachai-v2](https://github.com/cockroachai/cockroachai-v2)的基础访问域名或ip:端口
+
 ```bash
 docker run -d \
  -p 3040:3040 \
  -e BASE_URL=http://127.0.0.1/ \
- -e API_PATH="/backend-anon/conversation" \
  ghcr.io/mouxan/freegpt35
 ```
 
@@ -21,6 +22,5 @@ docker run -d \
 docker run -d \
  -p 3040:3040 \
  -e BASE_URL=http://127.0.0.1/ \
- -e API_PATH="/backend-anon/conversation" \
  mouxan/freegpt35
 ```
