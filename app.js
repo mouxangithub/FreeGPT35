@@ -10,13 +10,21 @@ config();
 
 // Constants for the server and API configuration
 const port = process.env.SERVER_PORT || 3040;
-const baseUrl = process.env.BASE_URL ? process.env.BASE_URL : "https://chat.openai.com";
-const apiUrl = `${baseUrl}/backend-anon/conversation`;
-const requirementsUrl = `${baseUrl}/backend-anon/sentinel/chat-requirements`;
+const baseUrl = process.env.BASE_URL
+  ? process.env.BASE_URL
+  : "https://chat.openai.com";
+const anonct = `${baseUrl}/backend-anon/conversation`;
+const anonmodels = `${baseUrl}/backend-anon/models`;
+const anonrs = `${baseUrl}/backend-anon/sentinel/chat-requirements`;
+const apict = `${baseUrl}/backend-api/conversation`;
+const apimodels = `${baseUrl}/backend-api/models`;
+const apirs = `${baseUrl}/backend-api/sentinel/chat-requirements`;
 const refreshInterval = 60000; // Interval to refresh token in ms
 const errorWait = 120000; // Wait time in ms after an error
 const newSessionRetries = parseInt(process.env.NEW_SESSION_RETRIES) || 5;
-const userAgent = process.env.USER_AGENT || "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+const userAgent =
+  process.env.USER_AGENT ||
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
 
 // Initialize global variables to store the session token and device ID
 let token;
@@ -26,7 +34,8 @@ let oaiDeviceId;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function GenerateCompletionId(prefix = "cmpl-") {
-  const characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const characters =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const length = 28;
 
   for (let i = 0; i < length; i++) {
@@ -78,7 +87,8 @@ const axiosInstance = axios.create({
     origin: baseUrl,
     pragma: "no-cache",
     referer: baseUrl,
-    "sec-ch-ua": '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
+    "sec-ch-ua":
+      '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"Windows"',
     "sec-fetch-dest": "empty",
@@ -114,18 +124,25 @@ function generateProofToken(seed, diff, userAgent) {
 }
 
 // Function to get a new session ID and token from the OpenAI API
-async function getNewSession(retries = 0) {
+async function getNewSession(retries = 0, authorization) {
   let newDeviceId = randomUUID();
   try {
     const response = await axiosInstance.post(
-      requirementsUrl,
+      authorization ? apirs : anonrs,
       {},
       {
-        headers: { "oai-device-id": newDeviceId },
+        headers: {
+          authorization: authorization,
+          "oai-device-id": newDeviceId,
+        },
       }
     );
 
     let session = response.data;
+    if (typeof session == "string") {
+      let newStr = session.replace(/\{"detail":"Unauthorized"\}/g, "");
+      session = JSON.parse(newStr);
+    }
     session.deviceId = newDeviceId;
 
     console.log(
@@ -138,9 +155,10 @@ async function getNewSession(retries = 0) {
 
     return session;
   } catch (error) {
-    console.log(error)
     await wait(500);
-    return retries < newSessionRetries ? getNewSession(retries + 1) : null;
+    return retries < newSessionRetries
+      ? getNewSession(retries + 1, authorization)
+      : null;
   }
 }
 
@@ -164,7 +182,8 @@ async function handleChatCompletion(req, res) {
     req.body.stream ? "(stream-enabled)" : "(stream-disabled)"
   );
   try {
-    let session = await getNewSession();
+    authorization = req.headers.authorization || "";
+    let session = await getNewSession(0, authorization);
     if (!session) {
       res.write(
         JSON.stringify({
@@ -182,6 +201,16 @@ async function handleChatCompletion(req, res) {
       session.proofofwork.difficulty,
       userAgent
     );
+    var model = "text-davinci-002-render-sha";
+    switch (req.body.model) {
+      case "gpt-3.5-turbo":
+        model = "text-davinci-002-render-sha";
+        break;
+      case "":
+        model = "text-davinci-002-render-sha";
+      default:
+        model = req.body.model;
+    }
     const body = {
       action: "next",
       messages: req.body.messages.map((message) => ({
@@ -189,7 +218,7 @@ async function handleChatCompletion(req, res) {
         content: { content_type: "text", parts: [message.content] },
       })),
       parent_message_id: randomUUID(),
-      model: "text-davinci-002-render-sha",
+      model: model,
       timezone_offset_min: -180,
       suggestions: [],
       history_and_training_disabled: true,
@@ -202,14 +231,19 @@ async function handleChatCompletion(req, res) {
       promptTokens += encode(message.content).length;
     }
 
-    const response = await axiosInstance.post(apiUrl, body, {
-      responseType: "stream",
-      headers: {
-        "oai-device-id": session.deviceId,
-        "openai-sentinel-chat-requirements-token": session.token,
-        "openai-sentinel-proof-token": proofToken,
-      },
-    });
+    const response = await axiosInstance.post(
+      authorization ? apict : anonct,
+      body,
+      {
+        responseType: "stream",
+        headers: {
+          authorization: authorization,
+          "oai-device-id": session.deviceId,
+          "openai-sentinel-chat-requirements-token": session.token,
+          "openai-sentinel-proof-token": proofToken,
+        },
+      }
+    );
 
     // Set the response headers based on the request type
     if (req.body.stream) {
@@ -359,6 +393,42 @@ async function handleChatCompletion(req, res) {
   }
 }
 
+async function handleModels(req, res) {
+  console.log(
+    "Request:",
+    `${req.method} ${req.originalUrl}`,
+    `${req.body?.messages?.length ?? 0} messages`
+  );
+  let newDeviceId = randomUUID();
+  try {
+    authorization = req.headers.authorization || "";
+    const response = await axiosInstance.get(
+      authorization ? apimodels : anonmodels,
+      {
+        headers: {
+          authorization: authorization,
+          "oai-device-id": newDeviceId,
+        },
+      }
+    );
+    res.write(JSON.stringify(response.data));
+    res.end();
+  } catch (error) {
+    if (!res.headersSent) res.setHeader("Content-Type", "application/json");
+    res.write(
+      JSON.stringify({
+        status: false,
+        error: {
+          message:
+            "An error occurred. Please try again. Additionally, ensure that your request complies with OpenAI's policy.",
+          type: "invalid_request_error",
+        },
+      })
+    );
+    res.end();
+  }
+}
+
 // Initialize Express app and use middlewares
 const app = express();
 app.use(bodyParser.json());
@@ -366,13 +436,16 @@ app.use(enableCORS);
 
 // Route to handle POST requests for chat completions
 app.post("/v1/chat/completions", handleChatCompletion);
+app.post("/v1/models", handleModels);
 
 // 404 handler for unmatched routes
 app.use((req, res) =>
   res.status(404).send({
     status: false,
     error: {
-      message: `The requested endpoint (${req.method.toLocaleUpperCase()} ${req.path}) was not found. https://github.com/missuo/FreeGPT35`,
+      message: `The requested endpoint (${req.method.toLocaleUpperCase()} ${
+        req.path
+      }) was not found. https://github.com/missuo/FreeGPT35`,
       type: "invalid_request_error",
     },
   })
@@ -383,7 +456,10 @@ app.listen(port, async () => {
   console.log(`💡 Server is running at http://localhost:${port}`);
   console.log();
   console.log(`🔗 Local Base URL: http://localhost:${port}/v1`);
-  console.log(`🔗 Local Endpoint: http://localhost:${port}/v1/chat/completions`);
+  console.log(
+    `🔗 Local Endpoint: http://localhost:${port}/v1/chat/completions`
+  );
+  console.log(`🔗 Local Models: http://localhost:${port}/v1/models`);
   console.log();
   console.log("📝 Original TS Source By: Pawan.Krd");
   console.log("📝 Modified By: Vincent");
@@ -396,8 +472,12 @@ app.listen(port, async () => {
         await wait(refreshInterval);
       } catch (error) {
         console.error("Error refreshing session ID, retrying in 2 minute...");
-        console.error("If this error persists, your country may not be supported yet.");
-        console.error("If your country was the issue, please consider using a U.S. VPN.");
+        console.error(
+          "If this error persists, your country may not be supported yet."
+        );
+        console.error(
+          "If your country was the issue, please consider using a U.S. VPN."
+        );
         await wait(errorWait);
       }
     }
