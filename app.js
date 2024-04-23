@@ -11,8 +11,10 @@ config();
 
 // Constants for the server and API configuration
 const port = process.env.SERVER_PORT || 3040;
-const baseUrl = "https://chat.openai.com";
-const apiUrl = `${baseUrl}/backend-api/conversation`;
+// const baseUrl = "https://chat.openai.com";
+// const apiUrl = `${baseUrl}/backend-api/conversation`;
+const baseUrl = process.env.BASE_URL ? process.env.BASE_URL : "https://chat.openai.com";
+const apiUrl = `${baseUrl}${process.env.API_PATH ? process.env.API_PATH : "/backend-api/conversation"}`;
 const refreshInterval = 60000; // Interval to refresh token in ms
 const errorWait = 120000; // Wait time in ms after an error
 const newSessionRetries = parseInt(process.env.NEW_SESSION_RETRIES) || 5;
@@ -64,26 +66,11 @@ async function* StreamCompletion(data) {
   yield* linesToMessages(chunksToLines(data));
 }
 
-// 代理服务器的配置
-const proxyOptions = {
-  host: process.env.PROXY_HOST,
-  port: process.env.PROXY_PORT,
-  // 如果代理服务器需要认证，你可以添加以下选项
-  auth: process.env.PROXY_USERNAME && process.env.PROXY_PASSWORD ? {
-    username: process.env.PROXY_USERNAME,
-    password: process.env.PROXY_PASSWORD
-  }: null
-};
-
-// 创建一个使用代理配置的https.Agent实例
-const agent = new https.Agent({
-  rejectUnauthorized: false, // 忽略证书验证
-  proxy: proxyOptions // 设置代理选项
-});
-
 // Setup axios instance for API requests with predefined configurations
 const axiosInstance = axios.create({
-  httpsAgent: agent,
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false, // 忽略证书验证
+  }),
   headers: {
     accept: "*/*",
     "accept-language": "en-US,en;q=0.9",
@@ -153,6 +140,7 @@ async function getNewSession(retries = 0) {
 
     return session;
   } catch (error) {
+    console.log(error)
     await wait(500);
     return retries < newSessionRetries ? getNewSession(retries + 1) : null;
   }
@@ -196,6 +184,7 @@ async function handleChatCompletion(req, res) {
       session.proofofwork.difficulty,
       userAgent
     );
+    console.log(proofToken)
     const body = {
       action: "next",
       messages: req.body.messages.map((message) => ({

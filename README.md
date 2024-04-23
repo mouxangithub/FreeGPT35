@@ -19,23 +19,21 @@ node app.js
 ```
 ### Docker
 
+### 使用蟑螂v2基础域名进行免登3.5转v1
+
 ```bash
 docker run -d \
  -p 3040:3040 \
- -e PROXY_HOST=127.0.0.1 \
- -e PROXY_PORT=8080 \
- -e PROXY_USERNAME=xxxx \
- -e PROXY_PASSWORD=xxxx \
+ -e BASE_URL=http://127.0.0.1/ \
+ -e API_PATH="/backend-anon/conversation" \
  ghcr.io/mouxan/freegpt35
 ```
 
 ```bash
 docker run -d \
  -p 3040:3040 \
- -e PROXY_HOST=127.0.0.1 \
- -e PROXY_PORT=8080 \
- -e PROXY_USERNAME=xxxx \
- -e PROXY_PASSWORD=xxxx \
+ -e BASE_URL=http://127.0.0.1/ \
+ -e API_PATH="/backend-anon/conversation" \
  mouxan/freegpt35
 ```
 
