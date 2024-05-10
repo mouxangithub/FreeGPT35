@@ -5,9 +5,6 @@
 使用第三方接口免登3.5转v1，例如[cockroachai-v2](https://github.com/cockroachai/cockroachai-v2)
 
 项目源自[FreeGPT35](https://github.com/missuo/FreeGPT35)，本项目只是更改了chatgpt的基础路径和域名，解决一些因为国内机器无法使用的问题
-**Due to the frequent updates of OpenAI, I have once again created a new version, which is based on DuckDuckGo, and is `GPT-3.5-Turbo-0125`.** 
-
-Repo: [https://github.com/missuo/FreeDuckDuckGo](https://github.com/missuo/FreeDuckDuckGo)
 
 
 ### 使用蟑螂v2基础域名进行免登3.5转v1
