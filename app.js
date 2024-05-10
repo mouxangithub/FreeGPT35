@@ -12,7 +12,7 @@ config();
 const port = process.env.SERVER_PORT || 3040;
 const baseUrl = process.env.BASE_URL
   ? process.env.BASE_URL
-  : "https://chat.openai.com";
+  : "https://chatgpt.com";
 const anonct = `${baseUrl}/backend-anon/conversation`;
 const anonmodels = `${baseUrl}/backend-anon/models`;
 const anonrs = `${baseUrl}/backend-anon/sentinel/chat-requirements`;
